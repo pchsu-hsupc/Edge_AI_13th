@@ -9,6 +9,7 @@ sudo apt update
 sudo apt install build-essential
 sudo apt install python3-venv
 sudo apt install python3-pip
+sudo apt install git
 ```
 ```
 pip3 install -r requirements.txt
