@@ -4,6 +4,7 @@ from tqdm.auto import tqdm
 from datasets import load_dataset
 import random
 import csv
+import torch
 from llama_cpp import Llama, LlamaTokenizer # LlamaTokenizer might not be explicitly needed if model handles it
 
 #####################################################################
@@ -129,7 +130,7 @@ def main():
             logits_all=True,
             split_mode=0,
             flash_attn=True, # Enable flash attention for better performance
-            verbose=True
+            verbose=False
         )
     except Exception as e:
         print(f"Error loading model: {e}")
@@ -160,7 +161,11 @@ def main():
 
     print("Starting test inference...")
     for _ in tqdm(range(10), desc="Test Inference"):
-        start_time = time.perf_counter()
+        # start_time = time.perf_counter()
+        torch.cuda.synchronize()
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        start.record()
 
         completion = model.create_completion(
             prompt,
@@ -169,19 +174,23 @@ def main():
             echo=False # Don't include prompt in the output text
         )
         
-        end_time = time.perf_counter()
+        # end_time = time.perf_counter()
+        # elapsed_s = end_time - start_time
+        # time_record.append(elapsed_s)
 
-        elapsed_s = end_time - start_time
-        time_record.append(elapsed_s)
+        end.record()
+        torch.cuda.synchronize()
+        elapsed_ms = start.elapsed_time(end)
 
         generated_text_only = completion['choices'][0]['text']
+        # print(f"Generated text: {generated_text_only}...")  # Print first 50 chars for brevity
         # num_generated_tokens = len(model.tokenize(generated_text_only.encode("utf-8"), add_bos=False)) # Alternative
         num_generated_tokens = completion['usage']['completion_tokens']
 
-
-        if elapsed_s > 0:
-            tput = num_generated_tokens / elapsed_s
+        if elapsed_ms > 0:
+            tput = num_generated_tokens / (elapsed_ms / 1000)
             tputs.append(tput)
+            time_record.append(elapsed_ms / 1000)
         else:
             tputs.append(float('inf')) # Avoid division by zero
             
@@ -190,13 +199,16 @@ def main():
     response = final_completion['choices'][0]['text']
     
     # Remove outliers for throughput calculation (middle 60%)
-    if len(tputs) > 4:
-        sorted_tputs = np.sort(tputs)[int(len(tputs)*0.2):int(len(tputs)*0.8)] # More robust outlier removal
-        org_tput = np.mean(sorted_tputs) if len(sorted_tputs) > 0 else np.mean(tputs)
-    elif len(tputs) > 0:
-        org_tput = np.mean(tputs)
-    else:
-        org_tput = 0.0
+    # if len(tputs) > 4:
+    #     sorted_tputs = np.sort(tputs)[int(len(tputs)*0.2):int(len(tputs)*0.8)] # More robust outlier removal
+    #     org_tput = np.mean(sorted_tputs) if len(sorted_tputs) > 0 else np.mean(tputs)
+    # elif len(tputs) > 0:
+    #     org_tput = np.mean(tputs)
+    # else:
+    #     org_tput = 0.0
+
+    sorted_tputs = np.sort(tputs)[2:-2]
+    org_tput = np.mean(sorted_tputs)
 
     print(f'\nPrompt: {prompt}\nResponse: {response}\n')
     
@@ -204,7 +216,7 @@ def main():
     print(f'Throughput Record (toks/s): {tputs}\n')
 
     ### Your final throughput result ###
-    print(f'Throughput: {org_tput:.2f} toks/s')
+    print(f'Throughput: {org_tput} toks/s')
 
     # PPL Evaluation
     # Using model.n_ctx() for seq_len in PPL.
