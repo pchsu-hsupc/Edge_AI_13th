@@ -32,5 +32,5 @@ pip install -r requirements.txt
 To evaluate the model (throughput and perplexity):
 
 ```bash
-python result_gguf.py
+python result.py
 ```
