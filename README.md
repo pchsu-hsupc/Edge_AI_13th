@@ -1,6 +1,6 @@
 # Edge_AI_13th
 
-**Model**: [LLaMA-3.2B-Instruct](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct)  
+**Model**: [hankleetw/llama32_lora_merged](https://huggingface.co/hankleetw/llama32_lora_merged)  
 **Dataset**: [WikiText-2 (raw)](https://huggingface.co/datasets/Salesforce/wikitext/viewer/wikitext-2-raw-v1)  
 **Platform**: NVIDIA T4 (16GB GPU memory) with CUDA 12.2 \
 **Python Version**: 3.10.12
